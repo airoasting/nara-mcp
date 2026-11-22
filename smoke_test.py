@@ -35,7 +35,8 @@ a2 = s.read_attachment(bid, offset=a["next_offset"] or 0, max_chars=1000)
 print("  이어 읽기 offset", a2["offset"], "->", a2["next_offset"])
 
 p = s.company_profile("set", company_name="테스트소프트", region="서울특별시 강남구",
-                      licenses=["소프트웨어사업자/1468"], keywords=["AI", "데이터", "플랫폼"],
+                      licenses=["소프트웨어사업자/1468"], company_size="중소기업", direct_production=[],
+                      keywords=["AI", "데이터", "플랫폼"],
                       exclude_keywords=["유지보수"], categories=["용역"], min_price="5천만", max_price="10억")
 show("company_profile set", p, 500)
 
@@ -43,6 +44,7 @@ e = s.check_eligibility(bid)
 show("check_eligibility", {"name": e["notice"].get("bidNtceNm"), "verdict": e["verdict"], "checks": e["checks"]}, 1200)
 
 rec = s.recommend_bids(period="최근 7일", max_results=6, check_top=3)
+assert all(i.get("status") != "취소" for i in rec["items"]), "추천에 취소공고가 섞였다"
 show("recommend_bids", {"pool": rec["pool_size"], "items": [(i.get("bidNtceNm"), i.get("status"), i.get("eligibility")) for i in rec["items"]]}, 1500)
 
 show("watchlist add", s.watchlist("add", name="AI 용역", keyword="AI", category="용역", min_price="1억"), 300)
@@ -57,9 +59,17 @@ show("get_bid_change_history 오늘", {"total": h["total_count"], "first": h["it
 c = s.call_operation("getBidPblancIncntvRgnListInfo", {"inqryDiv": 1, "inqryBgnDt": "202611200000", "inqryEndDt": "202611201200", "numOfRows": 2})
 show("call_operation 가산지역", c, 400)
 
+# 2차 개선 회귀: GOLD가 찾은 거짓 '참가 가능'(직접생산 요구) 3건과 RED가 찾은 취소공고
+for no in ["R26BK01845527", "R26BK01845620", "R26BK01843717", "R26BK01842769"]:
+    v = s.check_eligibility(no)["verdict"]
+    print(f"   거짓 양성 회귀 {no}: {v}")
+    assert v != "참가 가능(자격 기준)", f"{no}가 다시 참가 가능으로 나왔다"
+assert "e발주" in " ".join(f["type"] for f in s.read_attachment("R26BK01843717", max_chars=1000)["files"])
+
 # 낙찰 도구 (낙찰정보서비스)
 aw = s.search_awards(category="공사", period="이번 주", min_price="10억", max_results=10)
-show("search_awards 공사 10억 이상 이번 주", {k: aw[k] for k in ("period", "total_count", "stats")}, 700)
+show("search_awards 공사 10억 이상 이번 주", {"period": aw["period"], "total": aw["total_count"],
+     "competitive": aw["stats"]["competitive"], "single": aw["stats"]["single_bidder"]["count"]}, 700)
 assert aw["items"], "낙찰 검색 결과가 없다"
 big = max(aw["items"], key=lambda i: int(i.get("prtcptCnum") or 0))
 ga = s.get_award(big["bidNtceNo"], category="공사", bidders_top=3)

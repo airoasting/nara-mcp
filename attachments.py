@@ -136,11 +136,39 @@ def _safe_read(z: zipfile.ZipFile, name: str) -> bytes:
     return z.read(name)
 
 
+def _local(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
+
+
+def _hwpx_section_text(xml: bytes) -> str:
+    """HWPX 문단(p)마다 그 문단에 직접 딸린 run/t만 모은다.
+
+    표 셀 안의 문단은 바깥 문단의 run 아래(run/tbl/.../p)에 중첩된다. 바깥 문단에서 모든 하위 t를 모으면
+    표 내용이 두 번 나온다(실측). 직접 자식 run의 t만 모으고, 중첩 문단은 자기 차례에 따로 읽는다.
+    """
+    root = ET.fromstring(xml)
+    lines = []
+    for p in root.iter():
+        if _local(p.tag) != "p":
+            continue
+        parts = []
+        for run in p:
+            if _local(run.tag) != "run":
+                continue
+            for t in run:
+                if _local(t.tag) == "t":
+                    parts.append("".join(t.itertext()))
+        line = "".join(parts)
+        if line.strip():
+            lines.append(line)
+    return "\n".join(lines)
+
+
 def extract_hwpx(b: bytes) -> str:
     with zipfile.ZipFile(io.BytesIO(b)) as z:
         secs = sorted((n for n in z.namelist() if re.match(r"Contents/section\d+\.xml$", n)),
                       key=lambda n: int(re.findall(r"\d+", n)[-1]))
-        return "\n".join(_xml_text(_safe_read(z, s), "p", "t") for s in secs)
+        return "\n".join(_hwpx_section_text(_safe_read(z, s)) for s in secs)
 
 
 def extract_docx(b: bytes) -> str:
@@ -215,9 +243,22 @@ def extract_bytes(b: bytes, name: str, depth: int = 0) -> str:
 
 
 def tidy(text: str) -> str:
+    # HWP는 UTF-16 코드 단위로 읽으므로 짝이 맞는 서로게이트는 합치고, 짝 없는 것은 버린다(GOLD 평가: JSON 직렬화 실패)
+    text = text.encode("utf-16-le", "surrogatepass").decode("utf-16-le", "ignore")
+    text = re.sub(r"[\ud800-\udfff]", "", text)
     text = re.sub(r"[ \t　]+", " ", text)
     text = re.sub(r"\n\s*\n+", "\n\n", text)
     return text.strip()
+
+
+BID_NO = re.compile(r"R\d{2}BK\d{8}")
+
+
+def foreign_bid_numbers(bid_no: str, name: str, text: str) -> list[str]:
+    """파일 이름이나 본문 앞부분에 다른 공고번호가 있으면 돌려준다(다른 공고의 파일이 붙은 경우, 실측)."""
+    seen = set(BID_NO.findall(name or "")) | set(BID_NO.findall((text or "")[:3000]))
+    seen.discard(bid_no)
+    return sorted(seen) if bid_no not in (name or "") + (text or "")[:3000] else []
 
 
 def read_url(url: str) -> tuple[str, str]:

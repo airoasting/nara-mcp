@@ -205,11 +205,11 @@
   <div class="wrap">
     <div class="kicker">WHY</div>
     <h2>하루 873건, 사람이 다 열어 볼 수 없습니다</h2>
-    <p class="sec-lead">2026년 11월 20일 하루에 올라온 나라장터 용역 공고만 873건이었습니다. 공고마다 면허제한과 참가지역을 열어 보고, HWP 제안요청서를 내려받아 읽어야 합니다. AI에게 맡기려고 API를 붙여 보니 세 군데서 막혔습니다.</p>
+    <p class="sec-lead">2026년 11월 20일 하루에 올라온 나라장터 용역 공고만 873건이었습니다. 공고마다 면허 제한과 참가 지역을 확인하고, HWP 제안요청서를 내려받아 읽어야 합니다. 이 일을 AI에 맡기려고 API를 연결해 보니 세 곳에서 막혔습니다.</p>
     <div class="why">
-      <div class="item"><b>조회기간 7일</b><p>2026-11-10 공지로 한 번에 1개월에서 7일로 줄었습니다. 그것도 <b style="display:inline;font-size:inherit">날짜 기준 7일(양끝 포함)</b>이라 하루만 넘어도 <code>07</code> 오류가 납니다.</p></div>
-      <div class="item"><b>엔드포인트 버전</b><p>새 인증키는 <code>BidPublicInfoService02</code>에만 등록됩니다. <code>02</code>가 없는 주소는 같은 키로 <code>30 등록되지 않은 서비스키</code>를 돌려줍니다.</p></div>
-      <div class="item"><b>HWP 첨부</b><p>제안요청서는 대부분 HWP입니다. PDF 변환본은 <code>2026 년</code>, <code>( 부가세 별도 )</code>처럼 띄어쓰기가 깨져, HWP를 직접 읽어야 원문에 가깝습니다.</p></div>
+      <div class="item"><b>조회 기간 7일</b><p>2026-11-10 공지 이후 한 번에 조회할 수 있는 기간이 날짜 기준 7일(양끝 포함)로 줄었습니다. 하루만 넘겨도 <code>07</code> 오류가 납니다.</p></div>
+      <div class="item"><b>공개 정보의 빈틈</b><p>API의 면허·지역 제한만 보면 공고 대부분이 '참가 가능'으로 보입니다. 그런데 SW 용역 공고문은 대개 직접생산확인증명서를 요구합니다. 시험에서 추천 상위 3건이 모두 이 조건에 걸렸습니다.</p></div>
+      <div class="item"><b>숨은 제안요청서</b><p>조달청 대행 공고의 실제 제안요청서는 e발주 첨부에만 있습니다. PDF 변환본은 <code>2026 년</code>처럼 띄어쓰기가 깨져 HWP를 직접 읽어야 합니다.</p></div>
     </div>
   </div>
 </section>
@@ -219,11 +219,11 @@
     <div class="kicker">WHAT'S DIFFERENT</div>
     <h2>찾기에서 끝나지 않습니다</h2>
     <div class="feat">
-      <div class="f"><div class="n">01</div><h3>말하는 대로 찾습니다</h3><p>"이번 주", "최근 30일", "5억", "3천만원"을 그대로 받습니다. 키워드 여러 개, 제외 키워드, 마감임박·금액순 정렬. 7일 한도는 서버가 최대 5구간(약 35일)으로 나눠 조회합니다.</p></div>
-      <div class="f"><div class="n">02</div><h3>첨부 본문까지 읽습니다</h3><p>HWP, HWPX, PDF, DOCX, XLSX, ZIP. 제안요청서 → 과업지시서 → 공고문 순으로 고르고, 같은 문서면 HWP를 먼저 읽습니다. 긴 문서는 이어 읽습니다.</p></div>
-      <div class="f"><div class="n">03</div><h3>들어갈 수 있는지 규칙으로 판정합니다</h3><p>회사 프로필을 한 번 저장하면 마감, 면허·업종, 참가지역, 금액대를 맞대 봅니다. 면허 그룹은 '또는', 그룹 안은 '그리고', 허용업종은 대체 인정. 애매하면 '확인 필요'로 남깁니다.</p></div>
-      <div class="f"><div class="n">04</div><h3>새 공고를 놓치지 않습니다</h3><p>관심 검색을 저장하면 지난 확인 이후 새 공고만 돌려줍니다. 프로필 기반 추천은 상위 공고를 적합도까지 판정해 '참가 가능'을 위로 올립니다.</p></div>
-      <div class="f wide"><div class="n">05</div><h3>비슷한 사업은 얼마에, 누가 가져갔는지</h3><p>낙찰정보서비스로 낙찰률·낙찰금액·참가업체 수의 분포와 자주 낙찰받은 업체를 냅니다. 공고 하나의 투찰 순위, 예정가격, 추첨된 예비가격 4개, 유찰 사유도 봅니다. 하루 1,000건 한도 안에서 버티도록 5분 캐시와 재시도를 둡니다.</p></div>
+      <div class="f"><div class="n">01</div><h3>말하는 대로 찾습니다</h3><p>"이번 주", "최근 30일", "5억", "2천5백만원"을 그대로 받습니다. 영문 키워드는 단어 단위로 맞추고('AI'가 'LPAI'에 걸리지 않게), 같은 공고의 여러 차수는 최신 하나로 합치며, 취소공고는 뺍니다. 결과마다 D-day, 사업 유형, 낙찰하한율, 기술:가격 비율이 붙습니다.</p></div>
+      <div class="f"><div class="n">02</div><h3>제안요청서를 끝까지 읽습니다</h3><p>HWP, HWPX, PDF, DOCX, XLSX, ZIP과 e발주 첨부까지 읽습니다. 제안요청서 → 과업지시서 → 공고문 순으로 고르고, 다른 공고의 파일이 잘못 붙어 있으면 경고합니다.</p></div>
+      <div class="f"><div class="n">03</div><h3>거짓 '참가 가능'을 막습니다</h3><p>면허 그룹, 참가 지역, 자격등록 마감, 실적·지명 제한 표시에 더해 공고문의 직접생산확인, 중소기업·소기업·대기업 참여 제한까지 원문 문장을 근거로 대조합니다. 조건을 찾지 못했거나 요건인지 불명확하면 '참가 가능'이 아니라 '확인 필요'로 남깁니다.</p></div>
+      <div class="f"><div class="n">04</div><h3>시세를 정직하게 보여 줍니다</h3><p>낙찰 통계를 경쟁·단독, 그리고 낙찰방법별로 나눕니다. 한 표본에서 수의시담은 99.6%, 소액수의견적은 88.5%로 하나의 중앙값이 의미를 잃었습니다. 투찰 순위, 사정률, 낙찰자 투찰률과 실제 하한율(A값 반영)의 차이, 추첨 예비가격도 봅니다. 845개사가 겨룬 공사에서 낙찰자는 실제 하한보다 0.001%p 위였습니다.</p></div>
+      <div class="f wide"><div class="n">05</div><h3>반복 업무를 한 장으로 끝냅니다</h3><p>스킬 <code>/nara</code>가 회사 프로필 인터뷰, 주간 공고 브리핑(<code>briefing.md</code>), 공고 검토 보고서(<code>rfp-brief.md</code>)를 정해진 형식으로 만듭니다. 관심 검색은 물어볼 때마다 지난번 이후 새 공고만 돌려주고, 내 컴퓨터의 예약 작업과 함께 쓰면 매주 아침 브리핑이 됩니다. 판정 결과는 저장해 두고 다시 쓰므로 매주 새 공고만 호출을 씁니다.</p></div>
     </div>
   </div>
 </section>
@@ -231,35 +231,36 @@
 <section id="example">
   <div class="wrap">
     <div class="kicker">EXAMPLE</div>
-    <h2>키워드만으로 고르면 놓치는 차이</h2>
-    <p class="sec-lead">시험용 프로필(서울특별시 강남구, 소프트웨어사업자/1468)로 실제 공고를 판정한 결과입니다. 2026-11-22 실호출.</p>
+    <h2>면허만 보면 놓치는 차이</h2>
+    <p class="sec-lead">시험용 프로필(경기도 성남시, 소프트웨어사업자/1468, 중소기업, 직접생산확인 없음)로 실제 공고를 판정하고 낙찰 결과를 조회한 결과입니다. 2026-11-22 실호출.</p>
     <div class="ex">
       <div class="panel">
-        <div class="ph"><b>check_eligibility</b> · R26BK01835383</div>
+        <div class="ph"><b>check_eligibility</b> · R26BK01845527</div>
         <div class="pb">
-          <div style="font-weight:800;color:var(--navy);margin-bottom:8px">2027년 서울로봇인공지능과학관 청사 경비 용역</div>
+          <div style="font-weight:800;color:var(--navy);margin-bottom:8px">과학연구자 대상 AI운영환경(AI-OS) 시범 서비스 개발 용역</div>
           <span class="verdict no">참가 어려움</span>
           <table class="t">
             <tr><th>확인</th><th>결과</th><th>근거</th></tr>
-            <tr><td>마감</td><td class="r-ok">충족</td><td>진행중 D-3</td></tr>
-            <tr><td>면허(업종)</td><td class="r-no">불충족</td><td>시설경비업무/1164 그룹을 충족하지 못함</td></tr>
-            <tr><td>참가지역</td><td class="r-ok">충족</td><td>서울특별시</td></tr>
-            <tr><td>금액대</td><td class="r-ok">충족</td><td>추정가격 1.88억원</td></tr>
+            <tr><td>공고 상태</td><td class="r-ok">충족</td><td>진행중</td></tr>
+            <tr><td>면허(업종)</td><td class="r-ok">충족</td><td>소프트웨어사업자/1468</td></tr>
+            <tr><td>직접생산확인</td><td class="r-no">불충족</td><td>"정보시스템개발서비스(8111159901)에 대한 직접생산확인증명서를 소지한 자"</td></tr>
           </table>
-          <p class="note">공고명의 '인공지능' 때문에 검색에 걸렸지만, 경비업 면허가 필요한 공고라 반려됐습니다.</p>
+          <p class="note">면허·지역만 보던 이전 판정에서는 '참가 가능'이었습니다. 공고문 조건을 함께 보면서 판정이 바뀌었습니다.</p>
         </div>
       </div>
       <div class="panel">
-        <div class="ph"><b>recommend_bids</b> · 후보 97건 중 상위 3건</div>
+        <div class="ph"><b>get_award</b> · R26BK01817016</div>
         <div class="pb">
-          <span class="verdict ok">참가 가능(자격 기준)</span>
+          <div style="font-weight:800;color:var(--navy);margin-bottom:8px">(가칭)동래구 생활복합센터 건립 전문공사(전기)</div>
+          <span class="verdict ok">개찰완료 · 참가 845개사</span>
           <table class="t">
-            <tr><th>공고명</th><th>마감</th></tr>
-            <tr><td>순천향대학교 AI의료융합데이터센터 플랫폼 구축 사업(재공고)</td><td>D-5</td></tr>
-            <tr><td>2027년 충청북도 빅데이터 허브플랫폼 통합 유지관리용역</td><td>D-16</td></tr>
-            <tr><td>2027년도 아산시 통합빅데이터플랫폼 유지관리 및 분석사업 용역</td><td>D-17</td></tr>
+            <tr><th>항목</th><th>값</th></tr>
+            <tr><td>최종 낙찰</td><td>성신전기 주식회사 · 14.32억원 · 89.467%</td></tr>
+            <tr><td>투찰 순위</td><td>1위 89.467% · 2위 89.47% · 3위 89.473%</td></tr>
+            <tr><td>예정가격</td><td>16.01억원 (사정률 100.022%)</td></tr>
+            <tr><td>예비가격</td><td>15개 중 2·7·14·15번 추첨</td></tr>
           </table>
-          <p class="note">판정은 AI가 아니라 규칙이 내립니다. 같은 공고는 누가 돌려도 같은 결과가 나옵니다.</p>
+          <p class="note">845개사가 낙찰률 소수점 셋째 자리에서 순위가 갈렸습니다.</p>
         </div>
       </div>
     </div>
@@ -273,16 +274,16 @@
     <div class="tools">
       <table class="t">
         <tr><th>도구</th><th>하는 일</th><th>서비스</th></tr>
-        <tr><td>search_bids</td><td>공고 검색. 업무구분(전체 포함), 키워드 여러 개, 제외 키워드, 자연어 기간·금액, 기관, 지역, 업종, 진행중만, 정렬</td><td><span class="tag bid">입찰공고</span></td></tr>
-        <tr><td>get_bid</td><td>공고 하나 상세. 차수 목록, 면허제한, 참가가능지역, 첨부 목록, 기초금액</td><td><span class="tag bid">입찰공고</span></td></tr>
-        <tr><td>read_attachment</td><td>첨부 본문 읽기(HWP, HWPX, PDF, DOCX, XLSX, ZIP). 자동 선택, 이어 읽기</td><td><span class="tag bid">입찰공고</span></td></tr>
+        <tr><td>search_bids</td><td>조건 검색. 업무구분(전체 포함), 복수 키워드, 제외 키워드·사업유형, 자연어 기간·금액, 기관, 지역, 업종, 정렬</td><td><span class="tag bid">입찰공고</span></td></tr>
+        <tr><td>get_bid</td><td>공고 상세. 차수, 면허 제한, 참가 지역, 첨부(e발주 포함), 기초금액, 예정가격 범위·하한율 참고 계산</td><td><span class="tag bid">입찰공고</span></td></tr>
+        <tr><td>read_attachment</td><td>첨부 본문 추출(HWP, HWPX, PDF, DOCX, XLSX, ZIP). 자동 선택, 이어 읽기, 다른 공고 파일 경고</td><td><span class="tag bid">입찰공고</span></td></tr>
         <tr><td>company_profile</td><td>회사 조건 저장·조회·삭제</td><td><span class="tag local">로컬</span></td></tr>
-        <tr><td>check_eligibility</td><td>프로필로 참가 가능 여부 판정</td><td><span class="tag bid">입찰공고</span></td></tr>
-        <tr><td>recommend_bids</td><td>프로필 기반 추천, 상위 건 적합도 판정</td><td><span class="tag bid">입찰공고</span></td></tr>
-        <tr><td>watchlist</td><td>관심 검색 저장, 새 공고만 확인</td><td><span class="tag bid">입찰공고</span></td></tr>
+        <tr><td>check_eligibility</td><td>참가 가능 여부 판정(공개 제한 + 공고문 자격 조건), 일정 위험, 판정 재사용</td><td><span class="tag bid">입찰공고</span></td></tr>
+        <tr><td>recommend_bids</td><td>프로필 기반 추천. 상위 공고는 공고문까지 읽어 판정</td><td><span class="tag bid">입찰공고</span></td></tr>
+        <tr><td>watchlist</td><td>관심 검색 저장, 지난번 이후 새 공고만 확인</td><td><span class="tag bid">입찰공고</span></td></tr>
         <tr><td>get_bid_change_history</td><td>항목별 변경 전후 값</td><td><span class="tag bid">입찰공고</span></td></tr>
-        <tr><td>search_awards</td><td>낙찰 검색과 통계. 낙찰률·금액·참가업체 수 분포, 자주 낙찰받은 업체, 낙찰업체 필터</td><td><span class="tag award">낙찰정보</span></td></tr>
-        <tr><td>get_award</td><td>개찰·낙찰 결과, 투찰 순위, 예정가격과 복수예비가격, 유찰·재입찰 사유</td><td><span class="tag award">낙찰정보</span></td></tr>
+        <tr><td>search_awards</td><td>낙찰 검색과 통계(전체·경쟁·단독), 다수 낙찰 업체(사업자번호 기준), 낙찰업체 필터</td><td><span class="tag award">낙찰정보</span></td></tr>
+        <tr><td>get_award</td><td>개찰·낙찰 결과, 투찰 순위, 사정률, 복수예비가격, 실제 하한율(A값 반영) 대비 차이, 예산 대비 낙찰가, 유찰 사유</td><td><span class="tag award">낙찰정보</span></td></tr>
         <tr><td>call_operation</td><td>나머지 오퍼레이션 직접 호출(부공종, 가산지역, 공동도급의무지역 등)</td><td><span class="tag bid">입찰공고</span> <span class="tag award">낙찰정보</span></td></tr>
       </table>
     </div>
@@ -292,20 +293,19 @@
 <section id="install">
   <div class="wrap">
     <div class="kicker">INSTALL</div>
-    <h2>4단계, 5분</h2>
+    <h2>준비 2가지, 설치 한 줄</h2>
     <div class="req">
-      <div><b>uv</b><a href="https://docs.astral.sh/uv/">docs.astral.sh/uv</a>. 파이썬과 의존성을 알아서 맞춥니다.</div>
-      <div><b>입찰공고정보서비스 인증키</b><a href="https://www.data.go.kr/data/15129394/openapi.do">공공데이터포털</a>에서 활용신청. 개발계정은 자동승인입니다.</div>
-      <div><b>낙찰정보서비스 (선택)</b>낙찰 도구를 쓰려면 <a href="https://www.data.go.kr/data/15129397/openapi.do">같은 키로 신청</a>합니다.</div>
+      <div><b>uv</b>파이썬과 의존성을 알아서 맞춥니다. 터미널에서 한 번 설치합니다.
+        <pre><button class="copy">복사</button>curl -LsSf https://astral.sh/uv/install.sh | sh</pre></div>
+      <div><b>공공데이터포털 인증키</b><a href="https://www.data.go.kr/data/15129394/openapi.do">입찰공고정보서비스</a>를 활용신청합니다(자동승인). 낙찰 도구까지 쓰려면 <a href="https://www.data.go.kr/data/15129397/openapi.do">낙찰정보서비스</a>도 신청합니다. <b style="display:inline">키는 발급 후 1~2시간 뒤부터 동작합니다.</b></div>
+      <div><b>Claude Code</b>플러그인으로 설치합니다. 저장소를 직접 받는 방법과 Claude 데스크탑 앱 설정은 <a href="https://github.com/airoasting/nara-mcp#설치">README</a>에 있습니다.</div>
     </div>
     <div class="steps">
-      <div class="step"><div class="num">1</div><div><h3>저장소 받기</h3>
-        <pre><button class="copy">복사</button>git clone https://github.com/airoasting/nara-mcp.git ~/nara-mcp</pre></div></div>
-      <div class="step"><div class="num">2</div><div><h3>인증키 넣기</h3><p><code>인증키</code> 자리에 발급받은 값을 넣습니다.</p>
-        <pre><button class="copy">복사</button>printf 'G2B_SERVICE_KEY=인증키\n' > ~/nara-mcp/.env && chmod 600 ~/nara-mcp/.env</pre></div></div>
-      <div class="step"><div class="num">3</div><div><h3>Claude Code에 등록</h3><p>의존성은 첫 실행 때 uv가 설치합니다.</p>
-        <pre><button class="copy">복사</button>claude mcp add nara -s user -- uv run --directory ~/nara-mcp python server.py</pre></div></div>
-      <div class="step"><div class="num">4</div><div><h3>확인</h3><p>Claude Code를 새로 열고 <code>/mcp</code>에서 <code>nara</code>가 연결됐는지 봅니다. Claude 데스크탑 앱 설정은 <a href="https://github.com/airoasting/nara-mcp#claude-데스크탑-앱">README</a>에 있습니다.</p></div></div>
+      <div class="step"><div class="num">1</div><div><h3>플러그인 설치</h3><p>Claude Code 안에서 입력합니다. MCP 서버와 스킬 <code>/nara</code>가 함께 설치됩니다.</p>
+        <pre><button class="copy">복사</button>/plugin install nara --marketplace airoasting/nara-mcp</pre></div></div>
+      <div class="step"><div class="num">2</div><div><h3>인증키 입력</h3><p>설치하면 설정 창이 열립니다. <code>공공데이터포털 인증키</code> 칸에 키를 넣으면 키체인에 저장됩니다. 나중에 바꾸려면 <code>/plugin configure nara@nara-mcp</code>를 엽니다.</p></div></div>
+      <div class="step"><div class="num">3</div><div><h3>첫 질문</h3><p>Claude Code를 다시 열고 프로필부터 만듭니다.</p>
+        <pre><button class="copy">복사</button>/nara 우리 회사 프로필부터 만들자</pre></div></div>
     </div>
   </div>
 </section>
@@ -315,7 +315,8 @@
     <div class="kicker">LIMITS</div>
     <h2>이것은 입찰 자문이 아닙니다</h2>
     <div class="limits">
-      <div><b>공개된 제한만 봅니다.</b> 중소기업 제한, 실적 제한, 공동수급, 직접생산 확인은 공고문으로 따로 확인합니다.</div>
+      <div><b>공고문 조건은 문장 패턴으로 찾습니다.</b> 직접생산, 중소기업·소기업, 대기업 참여 제한을 봅니다. 실적·인력 요건과 신용등급은 검토 보고서의 참가 자격 표로 확인합니다.</div>
+      <div><b>투찰 참고 하한은 참고용입니다.</b> 응답에 있는 A값 항목을 반영하지만 산식은 공고의 적용 기준마다 다릅니다. 투찰 전 나라장터 화면의 하한을 확인합니다.</div>
       <div><b>읽지 못하는 첨부가 있습니다.</b> 암호 HWP, 배포용 HWP(미리보기만), 스캔 이미지 PDF(OCR 없음).</div>
       <div><b>긴 기간은 약 35일까지입니다.</b> 그보다 오래된 공고는 공고번호로 직접 조회합니다.</div>
     </div>

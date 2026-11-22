@@ -13,6 +13,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from urllib.parse import unquote
+
 import httpx
 
 BASE_URL = "https://apis.data.go.kr/1230000/ad/BidPublicInfoService02"
@@ -31,7 +33,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 # 시각이 아니라 날짜 기준으로 세며 시작일과 종료일을 모두 포함해 7일까지 된다(실측).
 MAX_DAYS = 7
 MAX_WINDOWS = 5  # 한 번의 검색에서 자동 분할할 최대 구간 수(약 35일)
-CACHE_TTL = 300  # 같은 요청은 5분 동안 다시 부르지 않는다(개발계정 일 1,000건 절약)
+CACHE_TTL = 1800  # 같은 요청은 30분 동안 다시 부르지 않는다(브리핑·검토·시세 조회가 한도 안에 들도록)
 
 CAT_CODE: dict[str, str] = {
     "물품": "Thng",
@@ -52,32 +54,51 @@ SUMMARY_FIELDS = [
     "ntceInsttNm", "dminsttNm", "cntrctCnclsMthdNm", "sucsfbidMthdNm",
     "presmptPrce", "asignBdgtAmt", "bidNtceDt", "bidClseDt", "opengDt",
     "mainCnsttyNm", "srvceDivNm", "bidNtceDtlUrl",
+    # 실무 필드(SILVER 평가 반영): 낙찰하한율, 평가 비율, 공동수급 방식, 자격등록 마감, 예가 방식, 사전규격, 재공고
+    "sucsfbidLwltRate", "techAbltEvlRt", "bidPrceEvlRt", "cmmnSpldmdMethdNm", "bidQlfctRgstDt",
+    "prearngPrceDcsnMthdNm", "bfSpecRgstNo", "reNtceYn",
 ]
 
 ERROR_HINTS = {
     "01": "나라장터 서버 일시 오류(시간 초과 포함). 잠시 후 다시 시도하거나 조회기간을 줄인다.",
-    "03": "조회 결과가 없다.",
+    "03": "조회 결과가 없다. 공고번호 오타, 업무구분(물품·공사·용역·외자·기타)을 확인한다. 검색이면 기간을 늘리거나 키워드를 줄인다.",
     "07": "입력 범위 초과. 조회기간은 날짜 기준 7일 이내여야 하고 numOfRows는 999 이하로 둔다.",
     "08": "필수값 누락. 상세 조회는 공고번호와 차수(bidNtceOrd)가 모두 필요하다.",
-    "12": "오퍼레이션 이름이 틀렸거나 폐기됐다.",
+    "12": "오퍼레이션 이름이 틀렸거나 폐기됐다. call_operation 설명의 오퍼레이션 목록에서 이름을 확인한다.",
     "22": "일일 호출 한도 초과(개발계정 트래픽 1,000건). 자정 이후 다시 시도하거나 운영계정을 신청한다.",
     "30": "등록되지 않은 인증키. 이 서비스를 활용신청했는지, 발급 직후라면 1~2시간 지났는지 확인한다.",
-    "31": "인증키 활용기간 만료.",
+    "31": "인증키 활용기간이 끝났다. 공공데이터포털 마이페이지에서 활용기간 연장을 신청한다.",
 }
 
 
 # ---------------------------------------------------------------- 호출
 
 def load_key() -> str:
+    return _normalize_key(_raw_key())
+
+
+def _raw_key() -> str:
     key = os.environ.get("G2B_SERVICE_KEY", "").strip()
-    if key:
+    if key and not key.startswith("${"):  # 플러그인 설정이 비었을 때 '${user_config...}'가 그대로 올 수 있다
         return key
+    key = ""
     env = Path(__file__).with_name(".env")
     if env.exists():
         for line in env.read_text(encoding="utf-8").splitlines():
             if line.strip().startswith("G2B_SERVICE_KEY="):
-                return line.split("=", 1)[1].strip().strip('"').strip("'")
-    raise RuntimeError("인증키가 없다. G2B_SERVICE_KEY 환경변수나 .env 파일을 설정한다.")
+                key = line.split("=", 1)[1].strip().strip('"').strip("'")
+                break
+    if not key:
+        raise RuntimeError(
+            f"인증키가 없다. {env} 파일에 'G2B_SERVICE_KEY=발급받은키' 한 줄을 넣고 Claude를 다시 시작한다. "
+            "플러그인으로 설치했다면 /plugin configure에서 키를 넣는다."
+        )
+    return key
+
+
+def _normalize_key(key: str) -> str:
+    """공공데이터포털이 보여 주는 '인코딩' 키(%2B, %3D 포함)를 넣어도 동작하게 한 번 디코딩한다."""
+    return unquote(key) if "%" in key else key
 
 
 class G2BError(Exception):
@@ -211,6 +232,8 @@ def parse_period(text: str, now: datetime | None = None) -> tuple[datetime, date
     m = re.fullmatch(r"(?:최근|지난)?(\d+)(일|주|개월|달)(?:간|동안)?", t)
     if m:
         n, unit = int(m.group(1)), m.group(2)
+        if n < 1:
+            raise ValueError("기간은 1 이상이어야 한다. 예: '최근 7일'")
         days = n if unit == "일" else n * 7 if unit == "주" else n * 30
         return today - timedelta(days=days - 1), now
     raise ValueError(f"기간 표현을 이해하지 못했다: {text!r}. 예: '최근 7일', '이번 주', '지난달'")
@@ -228,31 +251,65 @@ def resolve_range(period: str | None, start: str | None, end: str | None) -> tup
 
 # ---------------------------------------------------------------- 금액
 
-_UNITS = {"억": 100_000_000, "천만": 10_000_000, "백만": 1_000_000, "십만": 100_000, "만": 10_000, "천": 1_000}
+_SMALL = {"천": 1000, "백": 100, "십": 10}
+
+
+def _parse_small(t: str) -> float:
+    """'2천5백', '3', '1.5' 같은 만 단위 미만 묶음을 숫자로 바꾼다. 빈 문자열은 1('만원' = 1만원)."""
+    if t == "":
+        return 1
+    total, pos = 0.0, 0
+    for m in re.finditer(r"(\d+(?:\.\d+)?)?(천|백|십)?", t):
+        if m.end() == m.start():
+            continue
+        if m.start() != pos or (m.group(1) is None and m.group(2) is None):
+            raise ValueError(t)
+        num = float(m.group(1)) if m.group(1) else 1.0
+        total += num * _SMALL.get(m.group(2), 1)
+        pos = m.end()
+    if pos != len(t):
+        raise ValueError(t)
+    return total
 
 
 def parse_won(v: Any) -> int | None:
-    """'5억', '1.5억', '3천만원', '1억5천만', '3,000만원', 300000000 을 원 단위 정수로 바꾼다."""
+    """금액 표현을 원 단위 정수로 바꾼다.
+
+    '5억', '1.5억', '3천만원', '2천5백만원', '1억5천만', '1억 5천'(=1억5천만), '3,000만원', 300000000.
+    억·만 없이 '5천', '3백'만 쓰면 조달 금액 관행에 따라 만원 단위(5천만원, 3백만원)로 읽는다.
+    """
     if v in (None, ""):
         return None
     if isinstance(v, (int, float)):
         return int(v)
-    s = str(v).replace(",", "").replace(" ", "").replace("원", "")
+    s = str(v).replace(",", "").replace(" ", "")
+    explicit_won = s.endswith("원")
+    s = s.rstrip("원")
     if re.fullmatch(r"\d+(\.\d+)?", s):
         return int(float(s))
-    total, prev, pos = 0, None, 0
-    for m in re.finditer(r"(\d+(?:\.\d+)?)(억|천만|백만|십만|만|천)?", s):
-        if m.start() != pos:
-            break
-        pos = m.end()
-        num, unit = float(m.group(1)), m.group(2)
-        if unit == "천" and prev == "억":  # '1억5천'은 1억 5천만원으로 읽는다
-            unit = "천만"
-        total += int(num * _UNITS.get(unit, 1))
-        prev = unit
-    if pos != len(s) or total == 0:
+    try:
+        total = 0.0
+        rest = s
+        had_eok = "억" in rest
+        if had_eok:
+            left, rest = rest.split("억", 1)
+            total += _parse_small(left) * 100_000_000
+        if "만" in rest:
+            left, rest = rest.split("만", 1)
+            total += _parse_small(left) * 10_000
+            if rest:
+                total += _parse_small(rest)
+        elif rest:
+            small = _parse_small(rest)
+            # '1억5천'처럼 억 뒤에 만이 빠졌거나, '5천'처럼 단위 없이 천·백만 쓴 경우는 만원 단위로 본다
+            if had_eok or (re.search(r"[천백십]$", rest) and not explicit_won):
+                small *= 10_000
+            total += small
+    except ValueError:
+        raise ValueError(f"금액 표현을 이해하지 못했다: {v!r}. 예: '5억', '3천만원', '2천5백만원', 300000000") from None
+    if total <= 0:
         raise ValueError(f"금액 표현을 이해하지 못했다: {v!r}. 예: '5억', '3천만원', 300000000")
-    return total
+    return int(round(total))
 
 
 def won_kr(v: Any) -> str | None:
@@ -279,8 +336,14 @@ def normalize_category(c: str | None) -> str | None:
     return c
 
 
+def is_canceled(item: dict[str, Any]) -> bool:
+    return "취소" in (item.get("ntceKindNm") or "")
+
+
 def deadline_status(item: dict[str, Any], now: datetime | None = None) -> str | None:
-    """'진행중 D-5', '오늘 마감', '마감'."""
+    """'진행중 D-5', '오늘 마감', '마감', '취소'. 취소공고는 마감일이 남아 있어도 '취소'다."""
+    if is_canceled(item):
+        return "취소"
     s = item.get("bidClseDt")
     if not s:
         return None
@@ -293,6 +356,59 @@ def deadline_status(item: dict[str, Any], now: datetime | None = None) -> str | 
         return "마감"
     days = (close.date() - now.date()).days
     return "오늘 마감" if days == 0 else f"진행중 D-{days}"
+
+
+BIZ_TYPES = {  # 공고명으로 사업 성격을 추정한다. 참고용 분류다.
+    "감리": ["감리"],
+    "운영·유지관리": ["유지관리", "유지보수", "운영", "운용", "위탁"],
+    "컨설팅·계획": ["컨설팅", "ISP", "ISMP", "BPR", "계획 수립", "계획수립", "전략"],
+    "연구": ["연구용역", "연구", "조사"],
+    "구축·개발": ["구축", "개발", "고도화", "전환", "도입", "시작품", "보안 강화"],
+    "콘텐츠·홍보": ["홍보", "영상", "콘텐츠", "행사", "디자인"],
+}
+_WEAK_BUILD = ["시스템", "플랫폼", "솔루션"]  # 다른 유형이 없을 때만 구축·개발로 본다
+_NOT_OPERATE = re.compile(r"운영\s*(?:환경|체계|체제|모델|방안\s*수립)")
+
+
+def biz_type(title: str | None) -> str | None:
+    """공고명에서 가장 뒤에 나오는 유형어를 고른다('AI운영환경 … 개발 용역' → 구축·개발, '플랫폼 운영 용역' → 운영·유지관리).
+
+    감리는 어디에 있든 감리다. '운영환경·운영체계'의 '운영'은 운영 사업이 아니다. '구축 위탁'의 '위탁'은 구축을 앞서지 않는다.
+    """
+    t = _NOT_OPERATE.sub(" ", title or "")
+    if "감리" in t:
+        return "감리"
+    best, pos = None, -1
+    for name, words in BIZ_TYPES.items():
+        for w in words:
+            i = t.rfind(w)
+            if i < 0:
+                continue
+            if w == "위탁" and any(x in t for x in ("구축", "개발")):
+                continue
+            if i > pos:
+                best, pos = name, i
+    if best:
+        return best
+    return "구축·개발" if any(w in t for w in _WEAK_BUILD) else None
+
+
+def keyword_hit(keyword: str, title: str | None) -> bool:
+    """영문 키워드는 단어 단위로 맞춘다('AI'가 'LPAI'에 걸리지 않게). 한글은 부분 일치."""
+    t = title or ""
+    if re.fullmatch(r"[A-Za-z0-9]+", keyword):
+        return re.search(rf"(?<![A-Za-z]){re.escape(keyword)}(?![A-Za-z])", t, re.I) is not None
+    return keyword in t
+
+
+def latest_versions(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """같은 공고번호는 가장 높은 차수만 남긴다(정정 전 조건으로 판정하지 않게)."""
+    best: dict[str, dict[str, Any]] = {}
+    for it in items:
+        no = it.get("bidNtceNo")
+        if no not in best or (it.get("bidNtceOrd") or "") > (best[no].get("bidNtceOrd") or ""):
+            best[no] = it
+    return list(best.values())
 
 
 def clean(item: dict[str, Any]) -> dict[str, Any]:
@@ -327,4 +443,6 @@ def summary(item: dict[str, Any], category: str | None = None) -> dict[str, Any]
         s["presmptPrce_kr"] = w
     if (st := deadline_status(item)):
         s["status"] = st
+    if (bt := biz_type(item.get("bidNtceNm"))):
+        s["biz_type"] = bt
     return s
