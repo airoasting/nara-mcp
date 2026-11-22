@@ -1,4 +1,4 @@
-"""실호출 스모크 테스트(API 약 60~90건 사용). 사용: uv run python smoke_test.py
+"""실호출 스모크 테스트(API 약 40건 사용). 사용: uv run python smoke_test.py
 
 회사 프로필과 관심 검색은 임시 폴더에 저장해 실제 data/를 건드리지 않는다.
 """
@@ -56,6 +56,25 @@ show("get_bid_change_history 오늘", {"total": h["total_count"], "first": h["it
 
 c = s.call_operation("getBidPblancIncntvRgnListInfo", {"inqryDiv": 1, "inqryBgnDt": "202611200000", "inqryEndDt": "202611201200", "numOfRows": 2})
 show("call_operation 가산지역", c, 400)
+
+# 낙찰 도구 (낙찰정보서비스)
+aw = s.search_awards(category="공사", period="이번 주", min_price="10억", max_results=10)
+show("search_awards 공사 10억 이상 이번 주", {k: aw[k] for k in ("period", "total_count", "stats")}, 700)
+assert aw["items"], "낙찰 검색 결과가 없다"
+big = max(aw["items"], key=lambda i: int(i.get("prtcptCnum") or 0))
+ga = s.get_award(big["bidNtceNo"], category="공사", bidders_top=3)
+show(f"get_award 경쟁입찰 {big['bidNtceNo']}", {k: ga.get(k) for k in ("status", "bidders", "reserve_price")}, 900)
+assert ga["final_award"] and ga["bidders"], "경쟁입찰 낙찰자·투찰 순위가 비었다"
+if ga.get("reserve_price", {}).get("totRsrvtnPrceNum") == "15":
+    assert len(ga["reserve_price"]["drawn"]) == 4, "복수예비가격 추첨은 4개여야 한다"
+from g2b_core import call  # noqa: E402
+ob = call("getOpengResultListInfoServc", {"inqryDiv": 3, "inqryBgnDt": "202611200000", "inqryEndDt": "202611202359",
+                                          "numOfRows": 300}, service="award")
+fail = next((i for i in ob["items"] if i.get("progrsDivCdNm") == "유찰"), None)
+if fail:
+    gf = s.get_award(fail["bidNtceNo"], category="용역", bidders_top=0)
+    show(f"get_award 유찰 {fail['bidNtceNo']}", {k: gf.get(k) for k in ("status", "failure_reason")}, 400)
+    assert gf["status"] == "유찰" and isinstance(gf.get("failure_reason"), list)
 
 for bad in [lambda: s.get_bid("R99XX00000000", category="용역"),
             lambda: s.search_bids(min_price="많이"),

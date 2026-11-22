@@ -613,7 +613,7 @@ def search_awards(
         for ws, we in wins:
             page = 1
             while got < limit:
-                n = min(100, max(limit - got, 10))
+                n = min(100, limit - got)
                 body = call(op, {**base, "bidNtceNm": kw, "inqryBgnDt": fmt(ws), "inqryEndDt": fmt(we),
                                  "pageNo": page, "numOfRows": n}, service="award")
                 cnt = int(body.get("totalCount") or 0)
@@ -717,14 +717,17 @@ def get_award(
                    service="award")
     if isinstance(prices, list) and prices:
         p0 = prices[0]
-        result["reserve_price"] = {
+        rp = {
             "plnprc": p0.get("plnprc"), "plnprc_kr": won_kr(p0.get("plnprc")),
             "bssamt": p0.get("bssamt"), "bssamt_kr": won_kr(p0.get("bssamt")),
             "totRsrvtnPrceNum": p0.get("totRsrvtnPrceNum"),
             "drawn": [{"sno": x.get("compnoRsrvtnPrceSno"), "price": x.get("bsisPlnprc"), "draws": x.get("drwtNum")}
                       for x in prices if x.get("drwtYn") == "Y"],
-            "all": [x.get("bsisPlnprc") for x in sorted(prices, key=lambda x: int(x.get("compnoRsrvtnPrceSno") or 0))],
+            "all": [x.get("bsisPlnprc") for x in sorted(prices, key=lambda x: int(x.get("compnoRsrvtnPrceSno") or 0))
+                    if x.get("bsisPlnprc")],
         }
+        # 수의계약처럼 복수예비가격이 없는 공고는 빈 값이 온다(실측). 빈 항목은 뺀다.
+        result["reserve_price"] = {k: v for k, v in rp.items() if v not in ("", None, [])}
     else:
         result["reserve_price"] = prices or "예비가격 정보 없음(비예가 공고이거나 개찰 전)"
     st = result["status"] or ""
