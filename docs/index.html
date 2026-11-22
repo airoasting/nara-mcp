@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>나라장터 MCP</title>
+<meta name="description" content="조달청 나라장터 입찰공고를 말로 찾고, 제안요청서를 읽고, 우리 회사가 들어갈 수 있는지 따져 보는 MCP 서버.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="나라장터 MCP · 공고를 찾고, 읽고, 들어갈 수 있는지 따집니다">
+<meta property="og:description" content="자연어 검색, HWP 제안요청서 본문, 면허·지역 적합도, 새 공고 추적, 낙찰가 통계. Claude Code와 Claude 데스크탑에서.">
+<meta property="og:image" content="https://airoasting.github.io/nara-mcp/thumbnail.png">
+<meta property="og:url" content="https://airoasting.github.io/nara-mcp/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="airoasting-logo.png">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+<style>
+  :root {
+    --paper: #f3f0e8; --card: #fffdf8; --line: #e4dfd3;
+    --navy: #13233f; --blue: #2563eb; --blue-soft: #bcd0f7; --blue-tint: #e9eef8;
+    --ink: #2b3445; --muted: #6b7280; --ok: #15803d; --ok-bg: #eef7f0; --no: #b91c1c; --no-bg: #fdeeee;
+    --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { font-family: "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", sans-serif;
+    background: var(--paper); color: var(--ink); line-height: 1.7; word-break: keep-all; -webkit-font-smoothing: antialiased; }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+  code, pre { font-family: var(--mono); }
+
+  /* 상단 */
+  nav { display: flex; justify-content: space-between; align-items: center; padding: 22px 0; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: .16em; font-size: 12.5px; color: var(--navy); }
+  .brand img { width: 30px; height: 30px; border-radius: 50%; background: var(--navy); padding: 3px; }
+  nav .links { display: flex; gap: 22px; font-size: 14.5px; font-weight: 600; }
+  nav .links a { color: var(--navy); }
+
+  /* 히어로 */
+  .hero { position: relative; padding: 48px 0 84px;
+    background: repeating-linear-gradient(to bottom, transparent 0 29px, var(--line) 29px 30px); }
+  .hero .wrap { display: grid; grid-template-columns: 1.05fr .95fr; gap: 48px; align-items: center; }
+  .eyebrow { font-family: var(--mono); font-weight: 700; font-size: 13.5px; letter-spacing: .08em; color: var(--blue); }
+  .eyebrow b { color: var(--navy); }
+  h1 { font-weight: 900; font-size: clamp(64px, 10vw, 112px); letter-spacing: -.05em; line-height: 1; color: var(--navy); margin-top: 16px; }
+  h1 .dot { display: inline-block; width: .19em; height: .19em; background: var(--blue); transform: rotate(45deg); border-radius: .045em; margin-left: .07em; }
+  h1 small { font-family: var(--mono); font-size: .27em; color: var(--blue); letter-spacing: 0; margin-left: .3em; vertical-align: .55em; }
+  .headline { margin-top: 24px; font-weight: 800; font-size: clamp(26px, 3.4vw, 36px); line-height: 1.3; letter-spacing: -.03em; color: var(--navy); }
+  .hl { background: linear-gradient(to top, var(--blue-soft) 0 38%, transparent 38%); }
+  .lead { margin-top: 16px; font-size: 17px; color: #4b5563; max-width: 540px; }
+  .cta { margin-top: 30px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 8px; font-weight: 700; font-size: 16px; }
+  .btn:hover { text-decoration: none; }
+  .btn.primary { background: var(--navy); color: #fff; box-shadow: 5px 5px 0 var(--blue-soft); }
+  .btn.ghost { border: 2px solid var(--navy); color: var(--navy); }
+  .prompt { margin-top: 22px; font-family: var(--mono); font-size: 14px; color: var(--muted); }
+  .prompt b { color: var(--navy); font-family: inherit; }
+
+  .stack { position: relative; height: 470px; }
+  .card { position: absolute; background: var(--card); border-radius: 10px;
+    box-shadow: 0 18px 40px rgba(19,35,63,.14), 0 2px 6px rgba(19,35,63,.08); }
+  .back { left: 40px; right: 0; height: 110px; padding: 16px 22px; font-family: var(--mono); font-size: 12.5px; color: var(--muted); letter-spacing: .03em; }
+  .back b { color: var(--blue); }
+  .b1 { top: 0; transform: rotate(2.4deg); } .b2 { top: 30px; left: 20px; transform: rotate(1.1deg); }
+  .main { left: 0; right: 14px; top: 62px; transform: rotate(-1.1deg); overflow: hidden; }
+  .bar { background: var(--navy); color: #c7d2e5; display: flex; justify-content: space-between; padding: 12px 20px; font-family: var(--mono); font-size: 12px; }
+  .bar b { color: #93b4f5; font-size: 13px; }
+  .cbody { padding: 16px 20px 18px; }
+  .trow { display: flex; justify-content: space-between; gap: 12px; }
+  .ttl { font-weight: 800; font-size: 16.5px; line-height: 1.4; color: var(--navy); letter-spacing: -.02em; }
+  .dday { flex: none; border: 2px solid var(--blue); color: var(--blue); border-radius: 6px; padding: 1px 8px; font-weight: 800; font-size: 13px; height: fit-content; transform: rotate(-3deg); }
+  .kv { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13.5px; }
+  .kv th { text-align: left; color: var(--muted); font-weight: 600; width: 80px; padding: 6px 0; }
+  .kv td { font-weight: 600; padding: 6px 0; }
+  .kv tr + tr > * { border-top: 1px solid #ece7dc; }
+  .judge { margin-top: 10px; border-top: 2px solid var(--navy); padding-top: 10px; font-size: 12.5px; color: var(--muted); }
+  .judge .h { display: flex; justify-content: space-between; }
+  .judge .h b { color: var(--ok); font-size: 14px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .chip { background: var(--ok-bg); color: #14532d; border-radius: 999px; padding: 4px 11px; font-weight: 700; font-size: 12.5px; }
+  .chip::before { content: "✓ "; color: var(--ok); font-weight: 900; }
+  .stripe { height: 10px; background: repeating-linear-gradient(to right, var(--navy) 0 60px, var(--blue) 60px 120px); }
+
+  /* 섹션 */
+  section { padding: 84px 0; }
+  section.alt { background: var(--card); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .kicker { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--blue); letter-spacing: .1em; }
+  h2 { font-size: clamp(28px, 3.4vw, 38px); font-weight: 800; letter-spacing: -.03em; color: var(--navy); margin-top: 8px; line-height: 1.3; }
+  .sec-lead { margin-top: 14px; font-size: 17px; color: #4b5563; max-width: 720px; }
+
+  .why { margin-top: 36px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .why .item { background: var(--paper); border-radius: 12px; padding: 22px; border: 1px solid var(--line); }
+  .why .item b { display: block; color: var(--navy); font-size: 17px; margin-bottom: 8px; }
+  .why .item p { font-size: 15px; color: #4b5563; }
+  .why code { background: var(--blue-tint); color: var(--navy); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+
+  .feat { margin-top: 36px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+  .feat .f { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 26px; }
+  .feat .n { font-family: var(--mono); font-weight: 800; color: var(--blue); font-size: 14px; }
+  .feat h3 { font-size: 20px; color: var(--navy); margin: 6px 0 8px; letter-spacing: -.02em; }
+  .feat p { font-size: 15.5px; color: #4b5563; }
+  .feat .wide { grid-column: span 2; }
+
+  .ex { margin-top: 36px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .panel { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .panel .ph { background: var(--navy); color: #c7d2e5; font-family: var(--mono); font-size: 12.5px; padding: 11px 18px; }
+  .panel .ph b { color: #93b4f5; }
+  .panel .pb { padding: 18px; }
+  .verdict { display: inline-block; font-weight: 800; padding: 3px 12px; border-radius: 999px; font-size: 14px; margin-bottom: 12px; }
+  .verdict.no { background: var(--no-bg); color: var(--no); }
+  .verdict.ok { background: var(--ok-bg); color: var(--ok); }
+  table.t { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.t th, table.t td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.t th { color: var(--muted); font-weight: 600; font-size: 13px; background: rgba(19,35,63,.03); }
+  td.r-no { color: var(--no); font-weight: 700; } td.r-ok { color: var(--ok); font-weight: 700; }
+  .note { margin-top: 14px; font-size: 14.5px; color: var(--muted); }
+
+  .tools { margin-top: 32px; overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+  .tools td:first-child { font-family: var(--mono); font-weight: 700; color: var(--navy); white-space: nowrap; }
+  .tag { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .tag.bid { background: var(--blue-tint); color: var(--blue); } .tag.award { background: #fff4e5; color: #b45309; } .tag.local { background: #eef0f3; color: #4b5563; }
+
+  .steps { margin-top: 32px; display: grid; gap: 16px; }
+  .step { display: grid; grid-template-columns: 44px 1fr; gap: 16px; align-items: start; }
+  .step .num { width: 44px; height: 44px; border-radius: 50%; background: var(--navy); color: #fff; display: grid; place-items: center; font-weight: 800; }
+  .step h3 { font-size: 18px; color: var(--navy); }
+  .step p { font-size: 15px; color: #4b5563; margin-top: 2px; }
+  pre { position: relative; margin-top: 10px; background: var(--navy); color: #e5edfb; border-radius: 10px; padding: 16px 18px; font-size: 13.5px; overflow-x: auto; line-height: 1.6; }
+  .copy { position: absolute; top: 9px; right: 9px; background: rgba(255,255,255,.1); color: #dbe6fb; border: 0; border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; font-family: inherit; }
+  .copy:hover { background: rgba(255,255,255,.2); }
+  .req { margin-top: 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .req div { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 16px; font-size: 14.5px; }
+  .req b { display: block; color: var(--navy); }
+
+  .limits { margin-top: 28px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .limits div { border-left: 3px solid var(--blue); padding: 6px 0 6px 16px; font-size: 15px; color: #4b5563; }
+  .limits b { color: var(--navy); }
+
+  footer { padding: 44px 0 56px; font-size: 14px; color: var(--muted); }
+  footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+
+  /* 좁은 화면에서 긴 고정폭 문자열이 폭을 밀어내지 않게 */
+  .hero .wrap > *, .why > *, .feat > *, .ex > *, .req > *, .limits > *, .step > div { min-width: 0; }
+  code, .prompt, .eyebrow, .back { overflow-wrap: anywhere; }
+  .panel .pb { overflow-x: auto; }
+  @media (max-width: 880px) {
+    pre { white-space: pre-wrap; word-break: break-all; padding-right: 64px; }
+    .hero .wrap, .ex, .feat, .why, .req, .limits { grid-template-columns: 1fr; }
+    .feat .wide { grid-column: auto; }
+    .stack { height: 450px; max-width: 480px; }
+    nav .links { display: none; }
+    section { padding: 60px 0; }
+  }
+  @media (max-width: 480px) {
+    .wrap { padding: 0 16px; }
+    .stack { height: 430px; }
+    .bar span:last-child { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="wrap" style="display:block">
+    <nav>
+      <div class="brand"><img src="airoasting-logo.png" alt="">AI ROASTING</div>
+      <div class="links"><a href="#why">왜</a><a href="#features">기능</a><a href="#tools">도구</a><a href="#install">설치</a><a href="https://github.com/airoasting/nara-mcp">GitHub</a></div>
+    </nav>
+  </div>
+  <div class="wrap">
+    <div>
+      <div class="eyebrow"><b>G2B</b> · 입찰공고 · 첨부 본문 · 적합도 · 낙찰</div>
+      <h1>나라장터<span class="dot"></span><small>MCP</small></h1>
+      <div class="headline">공고를 <span class="hl">찾고, 읽고,</span><br>들어갈 수 있는지 따집니다.</div>
+      <p class="lead">조달청 나라장터 입찰공고를 Claude에게 말로 찾게 하고, HWP 제안요청서를 읽히고, 우리 회사가 참가할 수 있는지 규칙으로 판정합니다. 서버와 인증키는 내 컴퓨터에만 있습니다.</p>
+      <div class="cta">
+        <a class="btn primary" href="#install">설치하기</a>
+        <a class="btn ghost" href="https://github.com/airoasting/nara-mcp">GitHub 저장소</a>
+      </div>
+      <p class="prompt">&gt; <b>이번 주 AI 용역, 1억 이상, 마감 임박 순으로 찾아 줘</b></p>
+    </div>
+    <div class="stack" aria-label="공고 카드 예시">
+      <div class="card back b1">WATCHLIST · <b>AI 용역</b> · 새 공고 39건</div>
+      <div class="card back b2">READ_ATTACHMENT · <b>제안요청서.hwp</b> · 39,853자</div>
+      <div class="card main">
+        <div class="bar"><b>용역 · 협상</b><span>R26BK01831194 · 공고 2026-11-16</span></div>
+        <div class="cbody">
+          <div class="trow"><div class="ttl">2026년 충남 지역주도형 AI대전환 사업<br>제조 온톨로지 공정최적화 구축</div><div class="dday">D-5</div></div>
+          <table class="kv">
+            <tr><th>공고기관</th><td>(주)지에스티</td></tr>
+            <tr><th>추정가격</th><td>1.50억원</td></tr>
+            <tr><th>입찰마감</th><td>2026-11-27 10:00</td></tr>
+            <tr><th>면허제한</th><td>소프트웨어사업자 /1468</td></tr>
+          </table>
+          <div class="judge"><div class="h"><span>check_eligibility · 소프트웨어사업자 보유 기준</span><b>참가 가능</b></div>
+            <div class="chips"><span class="chip">마감 전</span><span class="chip">면허 충족</span><span class="chip">지역 제한 없음</span></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="stripe"></div>
+
+<section id="why">
+  <div class="wrap">
+    <div class="kicker">WHY</div>
+    <h2>하루 873건, 사람이 다 열어 볼 수 없습니다</h2>
+    <p class="sec-lead">2026년 11월 20일 하루에 올라온 나라장터 용역 공고만 873건이었습니다. 공고마다 면허제한과 참가지역을 열어 보고, HWP 제안요청서를 내려받아 읽어야 합니다. AI에게 맡기려고 API를 붙여 보니 세 군데서 막혔습니다.</p>
+    <div class="why">
+      <div class="item"><b>조회기간 7일</b><p>2026-11-10 공지로 한 번에 1개월에서 7일로 줄었습니다. 그것도 <b style="display:inline;font-size:inherit">날짜 기준 7일(양끝 포함)</b>이라 하루만 넘어도 <code>07</code> 오류가 납니다.</p></div>
+      <div class="item"><b>엔드포인트 버전</b><p>새 인증키는 <code>BidPublicInfoService02</code>에만 등록됩니다. <code>02</code>가 없는 주소는 같은 키로 <code>30 등록되지 않은 서비스키</code>를 돌려줍니다.</p></div>
+      <div class="item"><b>HWP 첨부</b><p>제안요청서는 대부분 HWP입니다. PDF 변환본은 <code>2026 년</code>, <code>( 부가세 별도 )</code>처럼 띄어쓰기가 깨져, HWP를 직접 읽어야 원문에 가깝습니다.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="features" class="alt">
+  <div class="wrap">
+    <div class="kicker">WHAT'S DIFFERENT</div>
+    <h2>찾기에서 끝나지 않습니다</h2>
+    <p class="sec-lead">깃허브의 나라장터 MCP 다섯 개를 살펴보고 좋은 아이디어는 가져오고, 무거운 부분은 덜어 냈습니다.</p>
+    <div class="feat">
+      <div class="f"><div class="n">01</div><h3>말하는 대로 찾습니다</h3><p>"이번 주", "최근 30일", "5억", "3천만원"을 그대로 받습니다. 키워드 여러 개, 제외 키워드, 마감임박·금액순 정렬. 7일 한도는 서버가 최대 5구간(약 35일)으로 나눠 조회합니다.</p></div>
+      <div class="f"><div class="n">02</div><h3>첨부 본문까지 읽습니다</h3><p>HWP, HWPX, PDF, DOCX, XLSX, ZIP. 제안요청서 → 과업지시서 → 공고문 순으로 고르고, 같은 문서면 HWP를 먼저 읽습니다. 긴 문서는 이어 읽습니다.</p></div>
+      <div class="f"><div class="n">03</div><h3>들어갈 수 있는지 규칙으로 판정합니다</h3><p>회사 프로필을 한 번 저장하면 마감, 면허·업종, 참가지역, 금액대를 맞대 봅니다. 면허 그룹은 '또는', 그룹 안은 '그리고', 허용업종은 대체 인정. 애매하면 '확인 필요'로 남깁니다.</p></div>
+      <div class="f"><div class="n">04</div><h3>새 공고를 놓치지 않습니다</h3><p>관심 검색을 저장하면 지난 확인 이후 새 공고만 돌려줍니다. 프로필 기반 추천은 상위 공고를 적합도까지 판정해 '참가 가능'을 위로 올립니다.</p></div>
+      <div class="f wide"><div class="n">05</div><h3>비슷한 사업은 얼마에, 누가 가져갔는지</h3><p>낙찰정보서비스로 낙찰률·낙찰금액·참가업체 수의 분포와 자주 낙찰받은 업체를 냅니다. 공고 하나의 투찰 순위, 예정가격, 추첨된 예비가격 4개, 유찰 사유도 봅니다. 하루 1,000건 한도 안에서 버티도록 5분 캐시와 재시도를 둡니다.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="example">
+  <div class="wrap">
+    <div class="kicker">EXAMPLE</div>
+    <h2>키워드만으로 고르면 놓치는 차이</h2>
+    <p class="sec-lead">시험용 프로필(서울특별시 강남구, 소프트웨어사업자/1468)로 실제 공고를 판정한 결과입니다. 2026-11-22 실호출.</p>
+    <div class="ex">
+      <div class="panel">
+        <div class="ph"><b>check_eligibility</b> · R26BK01835383</div>
+        <div class="pb">
+          <div style="font-weight:800;color:var(--navy);margin-bottom:8px">2027년 서울로봇인공지능과학관 청사 경비 용역</div>
+          <span class="verdict no">참가 어려움</span>
+          <table class="t">
+            <tr><th>확인</th><th>결과</th><th>근거</th></tr>
+            <tr><td>마감</td><td class="r-ok">충족</td><td>진행중 D-3</td></tr>
+            <tr><td>면허(업종)</td><td class="r-no">불충족</td><td>시설경비업무/1164 그룹을 충족하지 못함</td></tr>
+            <tr><td>참가지역</td><td class="r-ok">충족</td><td>서울특별시</td></tr>
+            <tr><td>금액대</td><td class="r-ok">충족</td><td>추정가격 1.88억원</td></tr>
+          </table>
+          <p class="note">공고명의 '인공지능' 때문에 검색에 걸렸지만, 경비업 면허가 필요한 공고라 반려됐습니다.</p>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph"><b>recommend_bids</b> · 후보 97건 중 상위 3건</div>
+        <div class="pb">
+          <span class="verdict ok">참가 가능(자격 기준)</span>
+          <table class="t">
+            <tr><th>공고명</th><th>마감</th></tr>
+            <tr><td>순천향대학교 AI의료융합데이터센터 플랫폼 구축 사업(재공고)</td><td>D-5</td></tr>
+            <tr><td>2027년 충청북도 빅데이터 허브플랫폼 통합 유지관리용역</td><td>D-16</td></tr>
+            <tr><td>2027년도 아산시 통합빅데이터플랫폼 유지관리 및 분석사업 용역</td><td>D-17</td></tr>
+          </table>
+          <p class="note">판정은 AI가 아니라 규칙이 내립니다. 같은 공고는 누가 돌려도 같은 결과가 나옵니다.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="tools" class="alt">
+  <div class="wrap">
+    <div class="kicker">TOOLS</div>
+    <h2>MCP 도구 11개</h2>
+    <div class="tools">
+      <table class="t">
+        <tr><th>도구</th><th>하는 일</th><th>서비스</th></tr>
+        <tr><td>search_bids</td><td>공고 검색. 업무구분(전체 포함), 키워드 여러 개, 제외 키워드, 자연어 기간·금액, 기관, 지역, 업종, 진행중만, 정렬</td><td><span class="tag bid">입찰공고</span></td></tr>
+        <tr><td>get_bid</td><td>공고 하나 상세. 차수 목록, 면허제한, 참가가능지역, 첨부 목록, 기초금액</td><td><span class="tag bid">입찰공고</span></td></tr>
+        <tr><td>read_attachment</td><td>첨부 본문 읽기(HWP, HWPX, PDF, DOCX, XLSX, ZIP). 자동 선택, 이어 읽기</td><td><span class="tag bid">입찰공고</span></td></tr>
+        <tr><td>company_profile</td><td>회사 조건 저장·조회·삭제</td><td><span class="tag local">로컬</span></td></tr>
+        <tr><td>check_eligibility</td><td>프로필로 참가 가능 여부 판정</td><td><span class="tag bid">입찰공고</span></td></tr>
+        <tr><td>recommend_bids</td><td>프로필 기반 추천, 상위 건 적합도 판정</td><td><span class="tag bid">입찰공고</span></td></tr>
+        <tr><td>watchlist</td><td>관심 검색 저장, 새 공고만 확인</td><td><span class="tag bid">입찰공고</span></td></tr>
+        <tr><td>get_bid_change_history</td><td>항목별 변경 전후 값</td><td><span class="tag bid">입찰공고</span></td></tr>
+        <tr><td>search_awards</td><td>낙찰 검색과 통계. 낙찰률·금액·참가업체 수 분포, 자주 낙찰받은 업체, 낙찰업체 필터</td><td><span class="tag award">낙찰정보</span></td></tr>
+        <tr><td>get_award</td><td>개찰·낙찰 결과, 투찰 순위, 예정가격과 복수예비가격, 유찰·재입찰 사유</td><td><span class="tag award">낙찰정보</span></td></tr>
+        <tr><td>call_operation</td><td>나머지 오퍼레이션 직접 호출(부공종, 가산지역, 공동도급의무지역 등)</td><td><span class="tag bid">입찰공고</span> <span class="tag award">낙찰정보</span></td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap">
+    <div class="kicker">INSTALL</div>
+    <h2>4단계, 5분</h2>
+    <div class="req">
+      <div><b>uv</b><a href="https://docs.astral.sh/uv/">docs.astral.sh/uv</a>. 파이썬과 의존성을 알아서 맞춥니다.</div>
+      <div><b>입찰공고정보서비스 인증키</b><a href="https://www.data.go.kr/data/15129394/openapi.do">공공데이터포털</a>에서 활용신청. 개발계정은 자동승인입니다.</div>
+      <div><b>낙찰정보서비스 (선택)</b>낙찰 도구를 쓰려면 <a href="https://www.data.go.kr/data/15129397/openapi.do">같은 키로 신청</a>합니다.</div>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="num">1</div><div><h3>저장소 받기</h3>
+        <pre><button class="copy">복사</button>git clone https://github.com/airoasting/nara-mcp.git ~/nara-mcp</pre></div></div>
+      <div class="step"><div class="num">2</div><div><h3>인증키 넣기</h3><p><code>인증키</code> 자리에 발급받은 값을 넣습니다.</p>
+        <pre><button class="copy">복사</button>printf 'G2B_SERVICE_KEY=인증키\n' > ~/nara-mcp/.env && chmod 600 ~/nara-mcp/.env</pre></div></div>
+      <div class="step"><div class="num">3</div><div><h3>Claude Code에 등록</h3><p>의존성은 첫 실행 때 uv가 설치합니다.</p>
+        <pre><button class="copy">복사</button>claude mcp add nara -s user -- uv run --directory ~/nara-mcp python server.py</pre></div></div>
+      <div class="step"><div class="num">4</div><div><h3>확인</h3><p>Claude Code를 새로 열고 <code>/mcp</code>에서 <code>nara</code>가 연결됐는지 봅니다. Claude 데스크탑 앱 설정은 <a href="https://github.com/airoasting/nara-mcp#claude-데스크탑-앱">README</a>에 있습니다.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <div class="kicker">LIMITS</div>
+    <h2>이것은 입찰 자문이 아닙니다</h2>
+    <div class="limits">
+      <div><b>공개된 제한만 봅니다.</b> 중소기업 제한, 실적 제한, 공동수급, 직접생산 확인은 공고문으로 따로 확인합니다.</div>
+      <div><b>낙찰 도구는 명세 기준입니다.</b> 공식 swagger와 참고문서 1.2대로 만들고 샘플 응답 형태로 시험했습니다. 실서비스 응답 검증은 진행 중입니다.</div>
+      <div><b>읽지 못하는 첨부가 있습니다.</b> 암호 HWP, 배포용 HWP(미리보기만), 스캔 이미지 PDF(OCR 없음).</div>
+      <div><b>긴 기간은 약 35일까지입니다.</b> 그보다 오래된 공고는 공고번호로 직접 조회합니다.</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>데이터: 공공데이터포털 조달청_나라장터 입찰공고정보서비스·낙찰정보서비스. 입찰 참가 판단은 나라장터 원문 공고로 확인합니다.</div>
+    <div>MIT License · <a href="https://github.com/airoasting/nara-mcp">airoasting/nara-mcp</a></div>
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll("pre .copy").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var text = b.parentElement.innerText.replace(/^복사\s*/, "").replace(/^복사됨\s*/, "").trim();
+      try { navigator.clipboard.writeText(text); b.textContent = "복사됨"; setTimeout(function () { b.textContent = "복사"; }, 1400); } catch (e) {}
+    });
+  });
+</script>
+</body>
+</html>
