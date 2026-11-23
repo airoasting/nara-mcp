@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "nara": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        ".",
+        "python",
+        "server.py"
+      ],
+      "cwd": ".",
+      "env_vars": [
+        "G2B_SERVICE_KEY"
+      ]
+    }
+  }
+}
